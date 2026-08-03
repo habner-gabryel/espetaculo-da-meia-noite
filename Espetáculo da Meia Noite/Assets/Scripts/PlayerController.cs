@@ -15,11 +15,11 @@ public class PlayerController : MonoBehaviour
 
     [Header("Camera (Mouse Look)")]
     [SerializeField] private Transform cameraTransform; // A camera que é filha do player
-    [SerializeField] private float mouseSensitivity = 100f;
-    [SerializeField] private float minVerticalAngle = -85f; // Limite inferior (olhar para baixo)
-    [SerializeField] private float maxVerticalAngle = 85f;  // Limite superior (olhar para cima)
+    [SerializeField] private float mouseSensitivity = 52f;
+    [SerializeField] private float minVerticalAngle = -70f; // Limite inferior (olhar para baixo)
+    [SerializeField] private float maxVerticalAngle = 20f;  // Limite superior (olhar para cima)
     [SerializeField] private bool enableSmoothing = true;   // Suavizacao opcional
-    [SerializeField] private float smoothTime = 0.05f;      // Tempo de suavizacao
+    [SerializeField] private float smoothTime = 0.005f;      // Tempo de suavizacao
 
     [Header("Física")]
     [SerializeField] private float maxFallSpeed = -20f;
