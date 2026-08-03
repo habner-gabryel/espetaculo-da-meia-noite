@@ -13,9 +13,13 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float crouchHeight = 1f;
     [SerializeField] private float standingHeight = 2f;
 
-    [Header("Camera (Opcional)")]
-    [SerializeField] private Transform cameraTransform; // Arraste a camera aqui
-    [SerializeField] private float mouseSensitivity = 100f;
+    [Header("Camera (Mouse Look)")]
+    [SerializeField] private Transform cameraTransform; // A camera que é filha do player
+    [SerializeField] private float mouseSensitivity = 52f;
+    [SerializeField] private float minVerticalAngle = -70f; // Limite inferior (olhar para baixo)
+    [SerializeField] private float maxVerticalAngle = 20f;  // Limite superior (olhar para cima)
+    [SerializeField] private bool enableSmoothing = true;   // Suavizacao opcional
+    [SerializeField] private float smoothTime = 0.005f;      // Tempo de suavizacao
 
     [Header("Física")]
     [SerializeField] private float maxFallSpeed = -20f;
@@ -33,6 +37,10 @@ public class PlayerController : MonoBehaviour
     // Referencias para itens
     private GameObject currentItem; // Ex: arma/lanterna equipada
 
+    private float currentVerticalAngle = 0f;
+    private float currentHorizontalAngle = 0f;
+    private float verticalVelocityRef;
+
     private void Awake()
     {
         // Instancia o Input Actions gerado
@@ -41,6 +49,15 @@ public class PlayerController : MonoBehaviour
 
         // Trava e esconde o cursor para jogos 3D
         Cursor.lockState = CursorLockMode.Locked;
+
+        // Inicializa os angulos com a rotacao atual da camera e do player
+        if (cameraTransform != null)
+        {
+            currentVerticalAngle = cameraTransform.localEulerAngles.x;
+            // Ajusta para o intervalo [-180, 180] para facilitar o clamp
+            if (currentVerticalAngle > 180) currentVerticalAngle -= 360;
+        }
+        currentHorizontalAngle = transform.eulerAngles.y;
     }
 
     private void OnEnable()
@@ -78,13 +95,13 @@ public class PlayerController : MonoBehaviour
         lookInput = inputActions.Player.Look.ReadValue<Vector2>();
 
         // 2. Aplica rotacao da camera (olhar)
-        ApplyLook();
+        ApplyMouseLook();
 
         // 3. Calcula e aplica o movimento
         ApplyMovement();
     }
 
-    #region LOGICA DE MOVIMENTO E FISICA
+    #region MOVIMENTO E FISICA
 
     private void ApplyMovement()
     {
@@ -118,26 +135,56 @@ public class PlayerController : MonoBehaviour
         // Ajuste de altura do agachamento
         controller.height = isCrouching ? crouchHeight : standingHeight;
     }
+    #endregion
 
-    private void ApplyLook()
+    #region CAMERA (MOUSE)
+
+    private void ApplyMouseLook()
     {
         if (cameraTransform == null) return;
 
-        // Rotacao horizontal (personagem)
-        float rotX = lookInput.x * mouseSensitivity * Time.deltaTime;
-        transform.Rotate(Vector3.up * rotX);
+        // Calcula a rotacao horizontal (personagem) com base no input do mouse
+        float horizontalDelta = lookInput.x * mouseSensitivity * Time.deltaTime;
+        currentHorizontalAngle += horizontalDelta;
 
-        // Rotacao vertical (camera) - limitada para nao virar de ponta-cabeca
-        float rotY = -lookInput.y * mouseSensitivity * Time.deltaTime;
-        Vector3 currentCamRot = cameraTransform.localEulerAngles;
-        float newRotX = currentCamRot.x + rotY;
-        newRotX = Mathf.Clamp(newRotX, -90f, 90f);
-        cameraTransform.localEulerAngles = new Vector3(newRotX, 0f, 0f);
+        // Calcula a rotacao vertical (camera) com base no input do mouse
+        float verticalDelta = -lookInput.y * mouseSensitivity * Time.deltaTime;
+        currentVerticalAngle += verticalDelta;
+
+        // --- CRITÉRIO 2: Limite de angulo vertical ---
+        currentVerticalAngle = Mathf.Clamp(currentVerticalAngle, minVerticalAngle, maxVerticalAngle);
+
+        // --- CRITÉRIO 3: Suavizacao Opcional (SmoothDamp) ---
+        if (enableSmoothing){
+            // Aplica a rotacao horizontal com suavizacao
+            float targetHorizontalAngle = currentHorizontalAngle;
+            float smoothHorizontal = Mathf.SmoothDampAngle(
+                transform.eulerAngles.y, 
+                targetHorizontalAngle, 
+                ref verticalVelocityRef, // Reaproveitamos a variavel, mas seria ideal ter uma dedicada
+                smoothTime
+            );
+            transform.rotation = Quaternion.Euler(0f, smoothHorizontal, 0f);
+
+            // Aplica a rotacao vertical com suavizacao
+            float targetVerticalAngle = currentVerticalAngle;
+            float smoothVertical = Mathf.SmoothDampAngle(
+                cameraTransform.localEulerAngles.x,
+                targetVerticalAngle,
+                ref verticalVelocityRef,
+                smoothTime
+            );
+            cameraTransform.localRotation = Quaternion.Euler(smoothVertical, 0f, 0f);
+        } else {
+            // Sem suavizacao: aplicacao direta e instantanea
+            transform.rotation = Quaternion.Euler(0f, currentHorizontalAngle, 0f);
+            cameraTransform.localRotation = Quaternion.Euler(currentVerticalAngle, 0f, 0f);
+        }
     }
 
     #endregion
 
-    #region ACOES DOS BOTOES (EVENTOS)
+    #region ACOES (EVENTOS)
 
     private void ToggleCrouch()
     {
