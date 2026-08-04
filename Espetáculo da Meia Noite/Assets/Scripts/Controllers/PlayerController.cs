@@ -23,6 +23,7 @@ public class PlayerController : MonoBehaviour
 
     [Header("Física")]
     [SerializeField] private float maxFallSpeed = -20f;
+    [SerializeField] private InteractionDetector interactionDetector;
 
     // Componentes e variaveis internas
     private CharacterController controller;
@@ -194,15 +195,7 @@ public class PlayerController : MonoBehaviour
 
     private void Interact()
     {
-        Debug.Log("Interagir (F) - Executando Raycast para objetos...");
-        // Exemplo: Dispara um Raycast da camera para frente e verifica interface IInteractable
-        if (Physics.Raycast(cameraTransform.position, cameraTransform.forward, out RaycastHit hit, 3f))
-        {
-            if (hit.collider.TryGetComponent(out IInteractable interactable))
-            {
-                interactable.Interact();
-            }
-        }
+        inputActions.Player.Interact.performed += ctx => interactionDetector.OnInteract(ctx);
     }
 
     private void PauseGame()
@@ -238,10 +231,4 @@ public class PlayerController : MonoBehaviour
     }
 
     #endregion
-}
-
-// Interface para interacao (crie em um script separado ou aqui mesmo)
-public interface IInteractable
-{
-    void Interact();
 }
